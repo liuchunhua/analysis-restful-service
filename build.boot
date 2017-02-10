@@ -9,6 +9,7 @@
                  [ring/ring-defaults "0.2.1"]
                  [compojure "1.5.2"]
                  [org.clojure/tools.nrepl "0.2.12"]
+                 [honeysql "0.8.2"]
                  [org.clojure/java.jdbc "0.7.0-alpha1"]
                  [com.mchange/c3p0 "0.9.5.2"]
                  [com.taoensso/carmine "2.15.0"]

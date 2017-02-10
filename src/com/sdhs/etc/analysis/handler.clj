@@ -1,5 +1,5 @@
 (ns com.sdhs.etc.analysis.handler
-  (:require [com.sdhs.etc.analysis.db :refer [query-road-path query-station-poi]]
+  (:require [com.sdhs.etc.analysis.db :refer [query-road-path query-station-poi query-gaode-station]]
             [clojure.tools.logging :as log]
             [com.sdhs.etc.analysis.redis :refer [get-available-stations]]))
 
@@ -36,3 +36,9 @@
       {:status "OK"
        :result (get-available-stations pcode instation outstation)}
       {:status "ERROR"})))
+
+(defn gaode-stations
+  [{:keys [pcode station attr]}]
+  (if (and (empty? station) (empty? attr))
+    {:status "ERROR"}
+    {:status "OK" :result (query-gaode-station pcode station attr)}))

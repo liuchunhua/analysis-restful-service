@@ -20,6 +20,7 @@
   (POST "/query/roadpath" {p :params} (response (road-path p)))
   (POST "/query/station" {p :params} (response (in-out-station p)))
   (POST "/available-stations" {p :params} (response (available-stations p)))
+  (POST "/gaode-stations" {p :params} (response (gaode-stations p)))
   (route/files "/" {:root "target"})
   (route/resources "/" {:root "target"})
   (route/not-found "Not Found"))

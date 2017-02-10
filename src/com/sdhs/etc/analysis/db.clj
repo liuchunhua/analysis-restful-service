@@ -1,7 +1,9 @@
 (ns com.sdhs.etc.analysis.db
   (:require [clojure.java.jdbc :as j]
             [clojure.string :as string]
-            [clojure.tools.logging :as log])
+            [clojure.tools.logging :as log]
+            [honeysql.core :as sql]
+            [honeysql.helpers :as helpers :refer [select from where order-by]])
   (:import com.mchange.v2.c3p0.ComboPooledDataSource
            java.sql.SQLException))
 
@@ -52,3 +54,14 @@
   [pcode instation outstation]
   (j/query (db-conn) ["select pcode,instation,outstation,inname,inattr,in_poi[0] as in_lng, in_poi[1] as in_lat,
 outname, outattr, out_poi[0] as out_lng, out_poi[1] as out_lat,distance,inscore,outscore,speed from in_out_station_poi where pcode = ? and instation = ? and outstation = ?" pcode instation outstation]))
+
+(defn query-gaode-station
+  [pcode station attr]
+  (let [condition [(when (not-empty station) [:like :station (str "%" station "%")])
+                   (when (not-empty attr) [:like :attr (str "%" attr "%")])]
+        wheres (keep identity condition)
+        sql (-> (select :id :station :attr (sql/raw "poi[0] as lng") (sql/raw "poi[1] as lat"))
+                (from :gaode_station))]
+    (when (not-empty wheres)
+      (when (not-empty pcode) (conj wheres [:= :pcode pcode]))
+      (j/query (db-conn) (sql/format (merge sql (apply where wheres) (order-by (sql/raw "poi[0],poi[1]"))))))))
