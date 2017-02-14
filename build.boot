@@ -19,13 +19,14 @@
                  [log4j "1.2.16"]
                  [commons-logging "1.1.1"]
                  [org.postgresql/postgresql "9.4.1212"]
-                 [amalloy/ring-gzip-middleware "0.1.3"]])
+                 [amalloy/ring-gzip-middleware "0.1.3"]
+                 [proto-repl "0.3.1"]])
 
 (task-options!
  pom {:project 'com.sdhs.etc.analysis/analysis-restful-service
       :version "0.0.1"
-      :description "restful service"
-      }
+      :description "restful service"}
+
  uber {:exclude-scope #{"provided"}}
  aot {:namespace #{'com.sdhs.etc.analysis.core 'com.sdhs.etc.analysis.db 'com.sdhs.etc.analysis.handler}}
  jar {:main 'com.sdhs.etc.analysis.core}
@@ -51,3 +52,7 @@
    (jar)
    (sift)
    (target)))
+
+(deftask dev
+  []
+  (repl))

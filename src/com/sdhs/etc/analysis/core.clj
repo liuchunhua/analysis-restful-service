@@ -21,6 +21,7 @@
   (POST "/query/station" {p :params} (response (in-out-station p)))
   (POST "/available-stations" {p :params} (response (available-stations p)))
   (POST "/gaode-stations" {p :params} (response (gaode-stations p)))
+  (POST "/car-path" {p :params} (response (car-path p)))
   (route/files "/" {:root "target"})
   (route/resources "/" {:root "target"})
   (route/not-found "Not Found"))
@@ -43,6 +44,4 @@
   (let [mode (or (System/getenv "DEV") "PRODUCT")
         port (or (System/getenv "PORT") 9000)]
     (log/info "running mode : " mode "port:" port)
-    (run-jetty (if (= mode "DEV") reloadable-app app) {:port (Integer/valueOf port)})
-    )
-  )
+    (run-jetty (if (= mode "DEV") reloadable-app app) {:port (Integer/valueOf port)})))

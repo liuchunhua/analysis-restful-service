@@ -15,8 +15,8 @@
             :dbname "etc"
             :host "10.180.29.35"
             :user "analysis"
-            :password "data"
-            })
+            :password "data"})
+
 
 (defn db_pool
   [spec]
@@ -60,8 +60,19 @@ outname, outattr, out_poi[0] as out_lng, out_poi[1] as out_lat,distance,inscore,
   (let [condition [(when (not-empty station) [:like :station (str "%" station "%")])
                    (when (not-empty attr) [:like :attr (str "%" attr "%")])]
         wheres (keep identity condition)
-        sql (-> (select :id :station :attr (sql/raw "poi[0] as lng") (sql/raw "poi[1] as lat"))
+        sql (-> (select :id :pcode :station :attr (sql/raw "poi[0] as lng") (sql/raw "poi[1] as lat"))
                 (from :gaode_station))]
     (when (not-empty wheres)
       (when (not-empty pcode) (conj wheres [:= :pcode pcode]))
       (j/query (db-conn) (sql/format (merge sql (apply where wheres) (order-by (sql/raw "poi[0],poi[1]"))))))))
+
+(defn query-car-path
+  [cardno start_intime end_intime]
+  (let [sql "select a.carno as car_number,b.inname as origin_name,a.instation as origin_name_etc,b.in_poi[0] as origin_longitude,b.in_poi[1] as origin_latitude,
+             to_char(a.intime,'YYYY-MM-DD HH24:MI:SS') as in_time,b.outname as dest_name,a.outstation as dest_name_etc,b.out_poi[0] as dest_longitude,b.out_poi[1] as dest_latitude,
+             to_char(a.outtime,'YYYY-MM-DD HH24:MI:SS') as out_time
+             from etc_consumewaste_record a
+             left join in_out_station_poi b on a.enprovid||'0000' =b.pcode and a.instation = b.instation and a.outstation = b.outstation
+             where a.cardno = ? and a.intime >= to_date(?,'YYYY-MM-DD') and a.intime <= to_date(?, 'YYYY-MM-DD')
+             order by intime"]
+    (j/query (db-conn) [sql cardno start_intime end_intime])))
