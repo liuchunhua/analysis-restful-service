@@ -1,5 +1,5 @@
 (ns com.sdhs.etc.analysis.handler
-  (:require [com.sdhs.etc.analysis.db :refer [query-road-path query-station-poi query-gaode-station query-road-path]]
+  (:require [com.sdhs.etc.analysis.db :refer [query-road-path query-station-poi query-gaode-station query-car-path]]
             [clojure.tools.logging :as log]
             [com.sdhs.etc.analysis.redis :refer [get-available-stations]]))
 
@@ -46,5 +46,5 @@
 (defn car-path
   [{:keys [cardno start end]}]
   (if (and cardno start end)
-    (:status "OK" :result (query-road-path cardno start end))
-    (:status "ERROR")))
+    {:status "OK" :result (query-car-path cardno start end)}
+    {:status "ERROR"}))
