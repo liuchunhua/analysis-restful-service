@@ -3,9 +3,10 @@
             [clojure.string :as string]
             [clojure.tools.logging :as log]
             [honeysql.core :as sql]
-            [honeysql.helpers :as helpers :refer [select from where order-by]])
+            [honeysql.helpers :as helpers :refer [select from where order-by left-join limit offset merge-left-join]])
   (:import com.mchange.v2.c3p0.ComboPooledDataSource
-           java.sql.SQLException))
+           java.sql.SQLException
+           java.time.LocalDate))
 
 
 (def pg-db {:classname "org.postgresql.Driver"
@@ -35,20 +36,20 @@
 
 (defn db-conn [] @pooled-db)
 
-(defn query-road-path
-  [userid start_intime end_intime cars page pagesize]
-  (let [sql "select a.carno as car_number,b.inname as origin_name,a.instation as origin_name_etc,b.in_poi[0] as origin_longitude,b.in_poi[1] as origin_latitude,
-             to_char(a.intime,'YYYY-MM-DD HH24:MI:SS') as in_time,b.outname as dest_name,a.outstation as dest_name_etc,b.out_poi[0] as dest_longitude,b.out_poi[1] as dest_latitude,
-             to_char(a.outtime,'YYYY-MM-DD HH24:MI:SS') as out_time
-             from etc_consumewaste_record a
-             left join in_out_station_poi b on a.enprovid||'0000' =b.pcode and a.instation = b.instation and a.outstation = b.outstation
-             where a.userid = ? and a.intime >= to_date(?,'YYYY-MM-DD') and a.intime <= to_date(?, 'YYYY-MM-DD') "]
-    (log/debug "查询参数：" (string/join " " [userid start_intime end_intime cars page pagesize]))
-    (if (not-empty cars)
-      (let [s (str sql "and carno in (" (string/join ", " (repeat (count cars) "?")) ") limit ? offset ?")
-            param (concat [s userid start_intime end_intime] cars [pagesize (* (dec page) pagesize)])]
-        (j/query (db-conn) param))
-      (j/query (db-conn) [(str sql "limit ? offset ?") userid start_intime end_intime pagesize (* (dec page) pagesize)]))))
+;; (defn query-road-path
+;;   [userid start_intime end_intime cars page pagesize]
+;;   (let [sql "select a.carno as car_number,b.inname as origin_name,a.instation as origin_name_etc,b.in_poi[0] as origin_longitude,b.in_poi[1] as origin_latitude,
+;;              to_char(a.intime,'YYYY-MM-DD HH24:MI:SS') as in_time,b.outname as dest_name,a.outstation as dest_name_etc,b.out_poi[0] as dest_longitude,b.out_poi[1] as dest_latitude,
+;;              to_char(a.outtime,'YYYY-MM-DD HH24:MI:SS') as out_time
+;;              from etc_consumewaste_record a
+;;              left join in_out_station_poi b on a.enprovid||'0000' =b.pcode and a.instation = b.instation and a.outstation = b.outstation
+;;              where a.userid = ? and a.intime >= to_date(?,'YYYY-MM-DD') and a.intime <= to_date(?, 'YYYY-MM-DD') "]
+;;     (log/debug "查询参数：" (string/join " " [userid start_intime end_intime cars page pagesize]))
+;;     (if (not-empty cars)
+;;       (let [s (str sql "and carno in (" (string/join ", " (repeat (count cars) "?")) ") limit ? offset ?")
+;;             param (concat [s userid start_intime end_intime] cars [pagesize (* (dec page) pagesize)])]
+;;         (j/query (db-conn) param))
+;;       (j/query (db-conn) [(str sql "limit ? offset ?") userid start_intime end_intime pagesize (* (dec page) pagesize)]))))
 
 (defn query-station-poi
   [pcode instation outstation]
@@ -76,3 +77,31 @@ outname, outattr, out_poi[0] as out_lng, out_poi[1] as out_lat,distance,inscore,
              where a.cardno = ? and a.intime >= to_date(?,'YYYY-MM-DD') and a.intime <= to_date(?, 'YYYY-MM-DD')
              order by intime"]
     (j/query (db-conn) [sql cardno start_intime end_intime])))
+
+(defn query-road-path
+  [userid start_intime end_intime cars page pagesize]
+  (let [start (LocalDate/parse start_intime)
+        end (LocalDate/parse end_intime)
+        sql (-> (select (sql/raw "e.vehinfo->>'n' as car_number,gin.station as origin_name,s.station as origin_name_etc,gin.lng as origin_longitude,gin.lat as origin_latitude,
+to_char(e.intime,'YYYY-MM-DD HH24:MI:SS') as in_time,gout.station as dest_name,c.station as dest_name_etc, gout.lng as dest_longitude,gout.lat as dest_latitude,
+to_char(e.outtime,'YYYY-MM-DD HH24:MI:SS') as out_time"))
+                            (from [(-> (select :wasteid :paycard)
+                                       (from [:etc_t_consumewaste :t] [:etc_t_card :e])
+                                       (where [:and
+                                               [:= :e.cardid :paycard]
+                                               [:= :e.userid userid]
+                                               [:>= :extime start]
+                                               [:<= :extime end]
+                                               (if (not-empty cars)
+                                                 (into [:or] (map #(vector := :paycard %) cars))
+                                                 true)])) :t])
+                            (left-join [:etc_consumewaste_parser :e] [:= :t.wasteid :e.wasteid])
+                            (merge-left-join [:etc_stations :s] [:= :e.instationid :s.id])
+                            (merge-left-join [:etc_stations :c] [:= :e.outstationid :c.id])
+                            (merge-left-join [:stations-poi :a] [:and [:= :e.instationid :a.instationid] [:= :e.outstationid :a.outstationid]])
+                            (merge-left-join [:gaode_station :gin] [:= :a.ingaodeid :gin.id])
+                            (merge-left-join [:gaode_station :gout] [:= :a.outgaodeid :gout.id])
+                            (limit pagesize)
+                            (offset (* (dec page) pagesize)))]
+    (log/debug (sql/format sql))
+    (j/query (db-conn) (sql/format sql))))

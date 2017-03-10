@@ -6,15 +6,14 @@
 (defn road-path
   [m]
   (let [{:keys [client_id client_name cars start_time end_time coord_type page count] :or {cars [] coord_type 1 page 1 count 20}} m]
-
+    (log/debug (str "search userid: " client_id))
     (if (and client_id start_time end_time)
       (let [routes (query-road-path client_id start_time end_time (if (coll? cars) cars (vector cars)) (min page 30) (min count 500))]
-        (log/debug "query" (clojure.core/count routes) "," (first routes))
+        (log/debug "search result:" (clojure.core/count routes) "," (first routes))
         {:return_code "000"
          :return_msg "OK"
          :total_number (clojure.core/count routes)
          :routes routes})
-
       {:return_code "001"
        :return_msg (format "参数不全:%s" (str m))
        :total_number 0

@@ -24,7 +24,7 @@
 
 (task-options!
  pom {:project 'com.sdhs.etc.analysis/analysis-restful-service
-      :version "0.0.1"
+      :version "0.0.2"
       :description "restful service"}
 
  uber {:exclude-scope #{"provided"}}
